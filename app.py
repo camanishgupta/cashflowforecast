@@ -8,7 +8,7 @@ import joblib
 # Load the data
 @st.cache
 def load_data():
-    data = pd.read_excel('SyntheticCashFlowData.xlsx')  # Load your data here
+    data = pd.read_excel('SyntheticCashFlowData_Seasonal.csv')  # Load your data here
     return data
 
 # Train the model
