@@ -1,6 +1,6 @@
 import pandas as pd
 import streamlit as st
-from fbprophet import Prophet
+from prophet import Prophet
 import numpy as np
 
 # Function to load data from uploaded CSV
@@ -11,10 +11,10 @@ def load_data(uploaded_file):
     return None
 
 # Function to calculate additional metrics
-def calculate_metrics(data, total_sales_col, credit_sales_col):
-    data['expense_ratio'] = data[total_sales_col] * 0.3  # Example: 30% of total sales
-    data['collection_rate'] = data[credit_sales_col] / data[total_sales_col]  # Ratio of credit sales to total sales
-    data['payout_days'] = 30  # Example: fixed payout days, can be adjusted based on your logic
+def calculate_metrics(data, total_sales_col, credit_sales_col, total_expenses_col, credit_expenses_col):
+    data['expense_ratio'] = data[total_expenses_col] / data[total_sales_col]  # Ratio of total expenses to total sales
+    data['collection_days'] = (data[credit_sales_col] / data[total_sales_col]) * 30  # Days in collection based on credit sales
+    data['credit_sales_ratio'] = data[credit_sales_col] / data[total_sales_col]  # Ratio of credit sales to total sales
     return data
 
 # Function to forecast sales using Prophet
@@ -30,7 +30,8 @@ def forecast_sales(data, total_sales_col):
 
 # Function to calculate cash flow
 def calculate_cash_flow(forecast, cash_sales, cash_expenses, cash_paid_to_suppliers):
-    forecast['cash_flow'] = forecast['yhat'] + cash_sales - cash_expenses - cash_paid_to_suppliers
+    total_cash_collected = forecast['yhat'] + cash_sales
+    forecast['cash_flow'] = total_cash_collected - cash_expenses - cash_paid_to_suppliers
     return forecast[['ds', 'cash_flow']]
 
 # Streamlit app layout
@@ -55,9 +56,11 @@ if data is not None:
     # Mapping user input for column names
     total_sales_col = st.selectbox("Select Total Sales Column", options=data.columns)
     credit_sales_col = st.selectbox("Select Credit Sales Column", options=data.columns)
+    total_expenses_col = st.selectbox("Select Total Expenses Column", options=data.columns)
+    credit_expenses_col = st.selectbox("Select Credit Expenses Column", options=data.columns)
 
     # Calculate additional metrics
-    data = calculate_metrics(data, total_sales_col, credit_sales_col)
+    data = calculate_metrics(data, total_sales_col, credit_sales_col, total_expenses_col, credit_expenses_col)
     st.write("Data with Calculated Metrics:")
     st.write(data)
 
@@ -78,14 +81,18 @@ if data is not None:
         st.write(cash_flow)
 
         # Monthly percentage increase assumptions for 2025
-        monthly_increases = []
+        total_sales_increases = []
+        total_expenses_increases = []
         for month in range(1, 13):
-            increase = st.number_input(f'Assumed % Increase for Month {month} (as a decimal, e.g., 0.05 for 5%)', value=0.05)
-            monthly_increases.append(increase)
+            sales_increase = st.number_input(f'Assumed % Increase for Total Sales Month {month} (as a decimal, e.g., 0.05 for 5%)', value=0.05)
+            total_sales_increases.append(sales_increase)
+            expenses_increase = st.number_input(f'Assumed % Increase for Total Expenses Month {month} (as a decimal, e.g., 0.05 for 5%)', value=0.05)
+            total_expenses_increases.append(expenses_increase)
 
-        # Calculate projected sales for 2025 based on assumptions
+        # Calculate projected sales and expenses for 2025 based on assumptions
         for i in range(12):
-            forecast.loc[forecast['ds'].dt.month == (i + 1), 'yhat'] *= (1 + monthly_increases[i])
+            forecast.loc[forecast['ds'].dt.month == (i + 1), 'yhat'] *= (1 + total_sales_increases[i])
+            cash_expenses *= (1 + total_expenses_increases[i])  # Update cash expenses based on user input
 
         # Recalculate cash flow with updated forecast
         cash_flow = calculate_cash_flow(forecast, cash_sales, cash_expenses, cash_paid_to_suppliers)
