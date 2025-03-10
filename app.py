@@ -1,6 +1,6 @@
 import pandas as pd
 import streamlit as st
-from prophet import Prophet
+from fbprophet import Prophet
 import numpy as np
 
 # Function to load data from uploaded CSV
