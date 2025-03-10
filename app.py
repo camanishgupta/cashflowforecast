@@ -1,9 +1,7 @@
 import pandas as pd
 import streamlit as st
-from sklearn.model_selection import train_test_split
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.metrics import mean_squared_error
-import joblib
+from fbprophet import Prophet
+import numpy as np
 
 # Function to load data from uploaded CSV
 def load_data(uploaded_file):
@@ -14,32 +12,26 @@ def load_data(uploaded_file):
 
 # Function to calculate additional metrics
 def calculate_metrics(data, total_sales_col, credit_sales_col):
-    # Calculate expense_ratio, collection_rate, and payout_days
     data['expense_ratio'] = data[total_sales_col] * 0.3  # Example: 30% of total sales
     data['collection_rate'] = data[credit_sales_col] / data[total_sales_col]  # Ratio of credit sales to total sales
     data['payout_days'] = 30  # Example: fixed payout days, can be adjusted based on your logic
     return data
 
-# Function to train the model
-def train_model(data, total_sales_col, credit_sales_col):
-    required_columns = [total_sales_col, credit_sales_col, 'expense_ratio', 'collection_rate', 'payout_days']
+# Function to forecast sales using Prophet
+def forecast_sales(data, total_sales_col):
+    df = data[[total_sales_col]].reset_index()
+    df.columns = ['ds', 'y']  # Rename columns for Prophet
+    model = Prophet()
+    model.fit(df)
 
-    # Prepare the data
-    X = data[required_columns]
-    y = data[total_sales_col]  # Assuming we want to predict total sales
+    future = model.make_future_dataframe(periods=12, freq='M')  # Forecast for 12 months
+    forecast = model.predict(future)
+    return forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']]
 
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-
-    model = RandomForestRegressor()
-    model.fit(X_train, y_train)
-
-    # Evaluate the model
-    predictions = model.predict(X_test)
-    mse = mean_squared_error(y_test, predictions)
-    st.write(f'Mean Squared Error: {mse}')
-
-    # Save the model
-    joblib.dump(model, 'sales_prediction_model.pkl')
+# Function to calculate cash flow
+def calculate_cash_flow(forecast, cash_sales, cash_expenses, cash_paid_to_suppliers):
+    forecast['cash_flow'] = forecast['yhat'] + cash_sales - cash_expenses - cash_paid_to_suppliers
+    return forecast[['ds', 'cash_flow']]
 
 # Streamlit app layout
 st.title('AI Model Training for Cash Flow Predictions')
@@ -69,32 +61,36 @@ if data is not None:
     st.write("Data with Calculated Metrics:")
     st.write(data)
 
-    # Train the model
-    if st.button('Train Model'):
-        train_model(data, total_sales_col, credit_sales_col)
-        st.success('Model trained and saved successfully!')
+    # Forecast sales using Prophet
+    if st.button('Forecast Sales'):
+        forecast = forecast_sales(data, total_sales_col)
+        st.write("Sales Forecast:")
+        st.write(forecast)
 
-    # Input fields for assumptions
-    st.write("Enter your assumptions for predictions:")
-    total_sales_input = st.number_input('Assumed Total Sales', value=10000)
-    credit_sales_input = st.number_input('Assumed Credit Sales', value=6000)
-    expense_ratio_input = st.number_input('Assumed Expense Ratio (as a decimal, e.g., 0.3 for 30%)', value=0.3)
-    collection_rate_input = st.number_input('Assumed Collection Rate (as a decimal, e.g., 0.75 for 75%)', value=0.75)
-    payout_days_input = st.number_input('Assumed Payout Days', value=30)
+        # Input fields for assumptions
+        cash_sales = st.number_input('Enter Cash Sales', value=0)
+        cash_expenses = st.number_input('Enter Cash Expenses', value=0)
+        cash_paid_to_suppliers = st.number_input('Enter Cash Paid to Suppliers', value=0)
 
-    # Load and use the model for predictions
-    if st.button('Make Prediction'):
-        model = joblib.load('sales_prediction_model.pkl')
-        input_data = {
-            total_sales_col: total_sales_input,
-            credit_sales_col: credit_sales_input,
-            'expense_ratio': expense_ratio_input,
-            'collection_rate': collection_rate_input,
-            'payout_days': payout_days_input
-        }
-        input_df = pd.DataFrame([input_data])
-        prediction = model.predict(input_df)
-        st.write(f'Predicted Total Sales: {prediction[0]}')
+        # Calculate cash flow
+        cash_flow = calculate_cash_flow(forecast, cash_sales, cash_expenses, cash_paid_to_suppliers)
+        st.write("Cash Flow Forecast:")
+        st.write(cash_flow)
+
+        # Monthly percentage increase assumptions for 2025
+        monthly_increases = []
+        for month in range(1, 13):
+            increase = st.number_input(f'Assumed % Increase for Month {month} (as a decimal, e.g., 0.05 for 5%)', value=0.05)
+            monthly_increases.append(increase)
+
+        # Calculate projected sales for 2025 based on assumptions
+        for i in range(12):
+            forecast.loc[forecast['ds'].dt.month == (i + 1), 'yhat'] *= (1 + monthly_increases[i])
+
+        # Recalculate cash flow with updated forecast
+        cash_flow = calculate_cash_flow(forecast, cash_sales, cash_expenses, cash_paid_to_suppliers)
+        st.write("Updated Cash Flow Forecast for 2025:")
+        st.write(cash_flow)
 
 # Instructions for GitHub and Streamlit deployment
 st.write("To deploy this app on Streamlit, follow these steps:")
