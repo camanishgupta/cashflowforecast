@@ -12,10 +12,20 @@ def load_data(uploaded_file):
         return data
     return None
 
+# Function to calculate additional metrics
+def calculate_metrics(data):
+    # Calculate expense_ratio, collection_rate, and payout_days
+    data['expense_ratio'] = data['total_sales'] * 0.3  # Example: 30% of total sales
+    data['collection_rate'] = data['credit_sales'] / data['total_sales']  # Example: ratio of credit sales to total sales
+    data['payout_days'] = 30  # Example: fixed payout days, can be adjusted based on your logic
+    return data
+
 # Function to train the model
 def train_model(data):
+    required_columns = ['total_sales', 'credit_sales', 'expense_ratio', 'collection_rate', 'payout_days']
+
     # Prepare the data
-    X = data[['total_sales', 'credit_sales', 'expense_ratio', 'collection_rate', 'payout_days']]
+    X = data[required_columns]
     y = data['total_sales']  # Assuming we want to predict total sales
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
@@ -48,7 +58,22 @@ if data is not None:
     st.write("Data Preview:")
     st.write(data)
 
+    # Calculate additional metrics
+    data = calculate_metrics(data)
+    st.write("Data with Calculated Metrics:")
+    st.write(data)
+
+    # Input fields for projections
+    expense_ratio_input = st.number_input('Enter Expense Ratio (as a decimal, e.g., 0.3 for 30%)', value=0.3)
+    collection_rate_input = st.number_input('Enter Collection Rate (as a decimal, e.g., 0.75 for 75%)', value=0.75)
+    payout_days_input = st.number_input('Enter Payout Days', value=30)
+
     if st.button('Train Model'):
+        # Update the calculated metrics with user inputs
+        data['expense_ratio'] = expense_ratio_input
+        data['collection_rate'] = collection_rate_input
+        data['payout_days'] = payout_days_input
+
         train_model(data)
         st.success('Model trained and saved successfully!')
 
@@ -58,9 +83,9 @@ if data is not None:
         input_data = {
             'total_sales': st.number_input('Total Sales'),
             'credit_sales': st.number_input('Credit Sales'),
-            'expense_ratio': st.number_input('Expense Ratio'),
-            'collection_rate': st.number_input('Collection Rate'),
-            'payout_days': st.number_input('Payout Days')
+            'expense_ratio': expense_ratio_input,
+            'collection_rate': collection_rate_input,
+            'payout_days': payout_days_input
         }
         input_df = pd.DataFrame([input_data])
         prediction = model.predict(input_df)
