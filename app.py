@@ -5,13 +5,14 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error
 import joblib
 
-# Load the data
-@st.cache
-def load_data():
-    data = pd.read_excel('SyntheticCashFlowData_Seasonal.csv')  # Load your data here
-    return data
+# Function to load data from uploaded CSV
+def load_data(uploaded_file):
+    if uploaded_file is not None:
+        data = pd.read_csv(uploaded_file)
+        return data
+    return None
 
-# Train the model
+# Function to train the model
 def train_model(data):
     # Prepare the data
     X = data[['total_sales', 'credit_sales', 'expense_ratio', 'collection_rate', 'payout_days']]
@@ -33,26 +34,37 @@ def train_model(data):
 # Streamlit app layout
 st.title('AI Model Training for Cash Flow Predictions')
 
-data = load_data()
-st.write(data)
+# Sample CSV download link
+st.markdown("Download a sample CSV file to edit:")
+st.markdown("[Sample CSV](https://example.com/sample_cash_flow_data.csv)")  # Replace with actual link
 
-if st.button('Train Model'):
-    train_model(data)
-    st.success('Model trained and saved successfully!')
+# File uploader
+uploaded_file = st.file_uploader("Upload your CSV file", type=["csv"])
 
-# Load and use the model for predictions
-if st.button('Make Prediction'):
-    model = joblib.load('sales_prediction_model.pkl')
-    input_data = {
-        'total_sales': st.number_input('Total Sales'),
-        'credit_sales': st.number_input('Credit Sales'),
-        'expense_ratio': st.number_input('Expense Ratio'),
-        'collection_rate': st.number_input('Collection Rate'),
-        'payout_days': st.number_input('Payout Days')
-    }
-    input_df = pd.DataFrame([input_data])
-    prediction = model.predict(input_df)
-    st.write(f'Predicted Total Sales: {prediction[0]}')
+# Load data from the uploaded file
+data = load_data(uploaded_file)
+
+if data is not None:
+    st.write("Data Preview:")
+    st.write(data)
+
+    if st.button('Train Model'):
+        train_model(data)
+        st.success('Model trained and saved successfully!')
+
+    # Load and use the model for predictions
+    if st.button('Make Prediction'):
+        model = joblib.load('sales_prediction_model.pkl')
+        input_data = {
+            'total_sales': st.number_input('Total Sales'),
+            'credit_sales': st.number_input('Credit Sales'),
+            'expense_ratio': st.number_input('Expense Ratio'),
+            'collection_rate': st.number_input('Collection Rate'),
+            'payout_days': st.number_input('Payout Days')
+        }
+        input_df = pd.DataFrame([input_data])
+        prediction = model.predict(input_df)
+        st.write(f'Predicted Total Sales: {prediction[0]}')
 
 # Instructions for GitHub and Streamlit deployment
 st.write("To deploy this app on Streamlit, follow these steps:")
