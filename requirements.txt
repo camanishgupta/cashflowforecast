@@ -2,5 +2,5 @@ pandas
 streamlit
 scikit-learn
 joblib
-fbprophet
-openpyxl  # If you're reading Excel files
+prophet  
+openpyxl 
