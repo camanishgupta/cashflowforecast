@@ -13,20 +13,20 @@ def load_data(uploaded_file):
     return None
 
 # Function to calculate additional metrics
-def calculate_metrics(data):
+def calculate_metrics(data, total_sales_col, credit_sales_col):
     # Calculate expense_ratio, collection_rate, and payout_days
-    data['expense_ratio'] = data['total_sales'] * 0.3  # Example: 30% of total sales
-    data['collection_rate'] = data['credit_sales'] / data['total_sales']  # Example: ratio of credit sales to total sales
+    data['expense_ratio'] = data[total_sales_col] * 0.3  # Example: 30% of total sales
+    data['collection_rate'] = data[credit_sales_col] / data[total_sales_col]  # Example: ratio of credit sales to total sales
     data['payout_days'] = 30  # Example: fixed payout days, can be adjusted based on your logic
     return data
 
 # Function to train the model
-def train_model(data):
-    required_columns = ['total_sales', 'credit_sales', 'expense_ratio', 'collection_rate', 'payout_days']
+def train_model(data, total_sales_col, credit_sales_col):
+    required_columns = [total_sales_col, credit_sales_col, 'expense_ratio', 'collection_rate', 'payout_days']
 
     # Prepare the data
     X = data[required_columns]
-    y = data['total_sales']  # Assuming we want to predict total sales
+    y = data[total_sales_col]  # Assuming we want to predict total sales
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
@@ -57,9 +57,15 @@ data = load_data(uploaded_file)
 if data is not None:
     st.write("Data Preview:")
     st.write(data)
+    st.write("Available Columns:")
+    st.write(data.columns)  # Display the columns in the uploaded DataFrame
+
+    # Mapping user input for column names
+    total_sales_col = st.selectbox("Select Total Sales Column", options=data.columns)
+    credit_sales_col = st.selectbox("Select Credit Sales Column", options=data.columns)
 
     # Calculate additional metrics
-    data = calculate_metrics(data)
+    data = calculate_metrics(data, total_sales_col, credit_sales_col)
     st.write("Data with Calculated Metrics:")
     st.write(data)
 
@@ -74,7 +80,7 @@ if data is not None:
         data['collection_rate'] = collection_rate_input
         data['payout_days'] = payout_days_input
 
-        train_model(data)
+        train_model(data, total_sales_col, credit_sales_col)
         st.success('Model trained and saved successfully!')
 
     # Load and use the model for predictions
