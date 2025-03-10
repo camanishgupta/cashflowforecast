@@ -16,7 +16,7 @@ def load_data(uploaded_file):
 def calculate_metrics(data, total_sales_col, credit_sales_col):
     # Calculate expense_ratio, collection_rate, and payout_days
     data['expense_ratio'] = data[total_sales_col] * 0.3  # Example: 30% of total sales
-    data['collection_rate'] = data[credit_sales_col] / data[total_sales_col]  # Example: ratio of credit sales to total sales
+    data['collection_rate'] = data[credit_sales_col] / data[total_sales_col]  # Ratio of credit sales to total sales
     data['payout_days'] = 30  # Example: fixed payout days, can be adjusted based on your logic
     return data
 
@@ -69,26 +69,25 @@ if data is not None:
     st.write("Data with Calculated Metrics:")
     st.write(data)
 
-    # Input fields for projections
-    expense_ratio_input = st.number_input('Enter Expense Ratio (as a decimal, e.g., 0.3 for 30%)', value=0.3)
-    collection_rate_input = st.number_input('Enter Collection Rate (as a decimal, e.g., 0.75 for 75%)', value=0.75)
-    payout_days_input = st.number_input('Enter Payout Days', value=30)
-
+    # Train the model
     if st.button('Train Model'):
-        # Update the calculated metrics with user inputs
-        data['expense_ratio'] = expense_ratio_input
-        data['collection_rate'] = collection_rate_input
-        data['payout_days'] = payout_days_input
-
         train_model(data, total_sales_col, credit_sales_col)
         st.success('Model trained and saved successfully!')
+
+    # Input fields for assumptions
+    st.write("Enter your assumptions for predictions:")
+    total_sales_input = st.number_input('Assumed Total Sales', value=10000)
+    credit_sales_input = st.number_input('Assumed Credit Sales', value=6000)
+    expense_ratio_input = st.number_input('Assumed Expense Ratio (as a decimal, e.g., 0.3 for 30%)', value=0.3)
+    collection_rate_input = st.number_input('Assumed Collection Rate (as a decimal, e.g., 0.75 for 75%)', value=0.75)
+    payout_days_input = st.number_input('Assumed Payout Days', value=30)
 
     # Load and use the model for predictions
     if st.button('Make Prediction'):
         model = joblib.load('sales_prediction_model.pkl')
         input_data = {
-            'total_sales': st.number_input('Total Sales'),
-            'credit_sales': st.number_input('Credit Sales'),
+            total_sales_col: total_sales_input,
+            credit_sales_col: credit_sales_input,
             'expense_ratio': expense_ratio_input,
             'collection_rate': collection_rate_input,
             'payout_days': payout_days_input
